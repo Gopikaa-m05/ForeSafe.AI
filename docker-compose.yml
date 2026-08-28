@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Production Optional)
+  postgres:
+    image: postgres:15-alpine
+    container_name: software_failure_postgres
+    environment:
+      POSTGRES_DB: software_failure_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # FastAPI Multi-Agent ML Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: software_failure_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/software_failure_db
+      SECRET_KEY: super-secure-production-jwt-secret-key-9f8a7b6c5d4e3f2a1
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      GOOGLE_CLIENT_ID: mock-google-client-id-for-development.apps.googleusercontent.com
+      FRONTEND_URL: http://localhost:3000
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # React Vite Frontend (Served via Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: software_failure_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

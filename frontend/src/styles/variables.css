@@ -1,0 +1,72 @@
+:root {
+  /* Color Palette - Nordic Glacial Emerald & Enterprise Data Science */
+  --bg-dark: #050d18;
+  --bg-primary: #081426;
+  --bg-secondary: #0c1d33;
+  --bg-surface: #0f2540;
+  --bg-card: rgba(11, 27, 48, 0.78);
+  --bg-card-hover: rgba(15, 36, 64, 0.9);
+  --bg-glass: rgba(8, 20, 38, 0.82);
+  --bg-input: rgba(7, 18, 34, 0.9);
+
+  /* Primary Accent & Glows - Glacial Emerald & Ice Blue */
+  --primary: #00f5d4;
+  --primary-hover: #00d8bc;
+  --primary-glow: rgba(0, 245, 212, 0.35);
+  --accent-cyan: #38bdf8;
+  --accent-ice: #48cae4;
+  --accent-teal: #00f5d4;
+  --accent-purple: #818cf8;
+  --accent-indigo: #6366f1;
+
+  /* Risk Assessment Levels */
+  --risk-critical: #ef476f;
+  --risk-critical-bg: rgba(239, 71, 111, 0.15);
+  --risk-critical-border: rgba(239, 71, 111, 0.38);
+  --risk-critical-glow: rgba(239, 71, 111, 0.28);
+
+  --risk-high: #ffd166;
+  --risk-high-bg: rgba(255, 209, 102, 0.14);
+  --risk-high-border: rgba(255, 209, 102, 0.38);
+
+  --risk-medium: #38bdf8;
+  --risk-medium-bg: rgba(56, 189, 248, 0.15);
+  --risk-medium-border: rgba(56, 189, 248, 0.38);
+
+  --risk-low: #00f5d4;
+  --risk-low-bg: rgba(0, 245, 212, 0.15);
+  --risk-low-border: rgba(0, 245, 212, 0.38);
+
+  /* Text & Content */
+  --text-main: #f1f7fb;
+  --text-muted: #8eacc4;
+  --text-dim: #5a7a97;
+  --text-dark: #050d18;
+
+  /* Borders & Shadows */
+  --border-subtle: rgba(0, 245, 212, 0.14);
+  --border-light: rgba(56, 189, 248, 0.2);
+  --border-focus: rgba(0, 245, 212, 0.6);
+
+  --shadow-sm: 0 2px 8px rgba(3, 8, 16, 0.4);
+  --shadow-md: 0 8px 24px rgba(3, 8, 16, 0.55);
+  --shadow-lg: 0 16px 40px rgba(3, 8, 16, 0.7);
+  --shadow-glow: 0 0 28px rgba(0, 245, 212, 0.25);
+  --shadow-card: 0 10px 30px -10px rgba(3, 8, 16, 0.6);
+
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Outfit', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Transitions & Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
