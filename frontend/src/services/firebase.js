@@ -27,14 +27,14 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-// Firebase configuration from environment variables
+// Firebase configuration from environment variables with production client defaults
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAgaj5FsuKCVndQww3w_cynN-hbw4up6VE',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'softwarefailure-186bc.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'softwarefailure-186bc',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'softwarefailure-186bc.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '684962570204',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:684962570204:web:fe5ec1104efe54bd66f919',
 };
 
 // Check if Firebase is configured with real credentials
@@ -54,7 +54,11 @@ if (isFirebaseConfigured) {
   try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
+    try {
+      db = getFirestore(app);
+    } catch (dbErr) {
+      console.warn('Firestore database initialization warning:', dbErr);
+    }
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
   } catch (error) {
@@ -66,8 +70,8 @@ if (isFirebaseConfigured) {
  * Register a new user with Firebase Auth and save user profile to Cloud Firestore
  */
 export const registerWithFirebase = async (fullName, email, password) => {
-  if (!isFirebaseConfigured || !auth || !db) {
-    throw new Error('Firebase is not configured. Please add your Firebase credentials to frontend/.env.');
+  if (!isFirebaseConfigured || !auth) {
+    throw new Error('Firebase Authentication is not configured.');
   }
 
   // 1. Create user in Firebase Authentication
@@ -75,7 +79,11 @@ export const registerWithFirebase = async (fullName, email, password) => {
   const firebaseUser = userCredential.user;
 
   // 2. Update display name in Firebase Auth
-  await updateProfile(firebaseUser, { displayName: fullName.trim() });
+  try {
+    await updateProfile(firebaseUser, { displayName: fullName.trim() });
+  } catch (profErr) {
+    console.warn('Could not update Firebase user displayName:', profErr);
+  }
 
   // 3. Store user record in Cloud Firestore database ("users" collection)
   const userData = {
@@ -89,8 +97,14 @@ export const registerWithFirebase = async (fullName, email, password) => {
     role: 'engineer',
   };
 
-  const userDocRef = doc(db, 'users', firebaseUser.uid);
-  await setDoc(userDocRef, userData);
+  if (db) {
+    try {
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      await setDoc(userDocRef, userData);
+    } catch (firestoreErr) {
+      console.warn('Firestore user doc sync bypassed (non-critical):', firestoreErr);
+    }
+  }
 
   // 4. Retrieve ID token for API authentication
   const idToken = await firebaseUser.getIdToken();
@@ -113,8 +127,8 @@ export const registerWithFirebase = async (fullName, email, password) => {
  * Log in an existing user with Firebase Auth and fetch Firestore profile
  */
 export const loginWithFirebase = async (email, password) => {
-  if (!isFirebaseConfigured || !auth || !db) {
-    throw new Error('Firebase is not configured. Please add your Firebase credentials to frontend/.env.');
+  if (!isFirebaseConfigured || !auth) {
+    throw new Error('Firebase Authentication is not configured.');
   }
 
   // 1. Authenticate with Firebase Authentication
@@ -171,15 +185,12 @@ export const loginWithFirebase = async (email, password) => {
  * Sign in using Google OAuth via Firebase Popup
  */
 export const googleSignInWithFirebase = async () => {
-  if (!isFirebaseConfigured || !auth || !db) {
-    throw new Error('Firebase is not configured. Please add your Firebase credentials to frontend/.env.');
+  if (!isFirebaseConfigured || !auth) {
+    throw new Error('Firebase Authentication is not initialized.');
   }
 
   const userCredential = await signInWithPopup(auth, googleProvider);
   const firebaseUser = userCredential.user;
-
-  const userDocRef = doc(db, 'users', firebaseUser.uid);
-  const userDoc = await getDoc(userDocRef);
 
   let profileData = {
     uid: firebaseUser.uid,
@@ -189,15 +200,24 @@ export const googleSignInWithFirebase = async () => {
     photo_url: firebaseUser.photoURL || '',
     is_verified: true,
     last_login: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    role: 'engineer',
   };
 
-  if (!userDoc.exists()) {
-    profileData.created_at = new Date().toISOString();
-    profileData.role = 'engineer';
-    await setDoc(userDocRef, profileData);
-  } else {
-    profileData = { ...userDoc.data(), ...profileData };
-    await updateDoc(userDocRef, { last_login: profileData.last_login });
+  if (db) {
+    try {
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        await setDoc(userDocRef, profileData);
+      } else {
+        profileData = { ...userDoc.data(), ...profileData };
+        await updateDoc(userDocRef, { last_login: profileData.last_login });
+      }
+    } catch (firestoreErr) {
+      console.warn('Firestore profile sync bypassed (non-critical):', firestoreErr);
+    }
   }
 
   const idToken = await firebaseUser.getIdToken();

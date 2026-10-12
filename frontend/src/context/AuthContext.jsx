@@ -50,7 +50,8 @@ export const AuthProvider = ({ children }) => {
 
   const googleLogin = async (idToken, email = null, name = null) => {
     const data = await authService.googleLogin(idToken, email, name);
-    return handleAuthSuccess(data);
+    handleAuthSuccess(data);
+    return data;
   };
 
   const logout = () => {
