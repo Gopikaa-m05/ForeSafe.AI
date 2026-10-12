@@ -9,8 +9,11 @@ from app.api.auth import get_current_user
 from app.db.models import User
 from app.agents.orchestrator import pipeline_orchestrator
 from app.schemas.prediction import PipelineResultResponse
+from app.utils.data_parser import parse_raw_bytes_to_df
 
 router = APIRouter()
+
+SUPPORTED_EXTENSIONS = (".csv", ".tsv", ".txt", ".xlsx", ".xls", ".json")
 
 @router.post("/predict", response_model=PipelineResultResponse)
 async def predict_failure_risk(
@@ -19,29 +22,37 @@ async def predict_failure_risk(
     db: Session = Depends(get_db)
 ):
     """
-    Runs the full 6-agent AI pipeline on an uploaded CSV file.
+    Runs the full 6-agent AI pipeline on an uploaded dataset file (CSV, TSV, Excel, JSON).
     Orchestrates Validation -> Preprocessing -> RF & XGBoost Prediction ->
     Risk Analysis -> Recommendations -> Debugging Plans.
     """
-    if not file.filename.endswith(".csv"):
+    fn_lower = file.filename.lower()
+    if not any(fn_lower.endswith(ext) for ext in SUPPORTED_EXTENSIONS):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only CSV files (.csv) are accepted."
+            detail=f"Unsupported format '{file.filename}'. Supported formats: CSV (.csv), TSV (.tsv), Excel (.xlsx, .xls), JSON (.json), TXT (.txt)."
         )
         
     try:
         contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
+        if not contents or len(contents.strip()) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Dataset file contains no records or is empty."
+            )
+        df = parse_raw_bytes_to_df(contents, file.filename)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unable to parse CSV file: {str(e)}"
+            detail=f"Unable to parse dataset file: {str(e)}"
         )
         
-    if df.empty:
+    if df.empty or len(df) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="CSV file contains no records."
+            detail="Parsed dataset contains no module records."
         )
         
     try:
@@ -62,3 +73,4 @@ async def predict_failure_risk(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Prediction pipeline encountered an error: {str(e)}"
         )
+

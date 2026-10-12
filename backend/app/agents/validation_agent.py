@@ -2,6 +2,7 @@ import pandas as pd
 from typing import Dict, Any, List
 from app.agents.base_agent import BaseAgent
 from app.ml.train import FEATURE_COLUMNS
+from app.utils.data_parser import prepare_pipeline_dataframe
 
 class ValidationAgent(BaseAgent):
     def __init__(self):
@@ -13,53 +14,46 @@ class ValidationAgent(BaseAgent):
             raise ValueError("Validation Agent received invalid or missing input DataFrame.")
             
         if len(df) == 0:
-            raise ValueError("Uploaded dataset is empty.")
+            raise ValueError("Uploaded dataset contains 0 records.")
             
-        # Clean column names
-        df.columns = [c.strip() for c in df.columns]
+        # Process and normalize features using the intelligent dataset parser
+        clean_df, module_names, meta = prepare_pipeline_dataframe(df)
         
-        # Check standard JM1 columns
-        found_features = [c for c in FEATURE_COLUMNS if c in df.columns]
-        missing_features = [c for c in FEATURE_COLUMNS if c not in df.columns]
-        
-        # Identify or synthesize module names
-        module_col_candidates = ["module", "module_name", "name", "file", "function", "class", "id"]
-        found_mod_col = next((c for c in module_col_candidates if c in [col.lower() for col in df.columns]), None)
-        
-        if found_mod_col:
-            module_names = df[found_mod_col].astype(str).tolist()
-        else:
-            module_names = [f"Module_{i+1:03d}" for i in range(len(df))]
-            
-        # Check row anomalies / missing values
-        null_count = int(df[found_features].isna().sum().sum())
+        found_features = meta["found_features"]
+        missing_features = [c for c in FEATURE_COLUMNS if c not in found_features]
+        aliased_features = meta.get("aliased_features", [])
+        synthesized_features = meta.get("synthesized_features", [])
         
         # Schema validity status
-        is_valid = len(found_features) >= 10  # Must match at least 10 key Halstead/McCabe features
-        if not is_valid:
-            raise ValueError(
-                f"Dataset does not conform to NASA JM1 schema. Found only {len(found_features)} features: {found_features}. "
-                f"Required features include: {FEATURE_COLUMNS[:8]}"
-            )
+        if len(found_features) == len(FEATURE_COLUMNS):
+            status_label = "Valid (Full 21-Feature Schema)"
+        elif len(found_features) >= 10:
+            status_label = f"Valid ({len(found_features)}/21 Matched)"
+        else:
+            status_label = f"Synthesized & Imputed ({len(found_features)} Direct / {len(missing_features)} Auto-Mapped)"
             
-        status_label = "Valid" if len(missing_features) == 0 else "Warning (Imputed Features)"
-        
-        state["cleaned_df"] = df
+        state["cleaned_df"] = clean_df
         state["module_names"] = module_names
         state["found_features"] = found_features
         state["missing_features"] = missing_features
         state["validation_status"] = status_label
         
-        state["_step_summary"] = (
-            f"Validated {len(df)} software modules. Schema status: {status_label}. "
-            f"Found {len(found_features)}/21 NASA JM1 metric columns with {null_count} null elements handled."
+        summary_msg = (
+            f"Validated {len(clean_df)} software modules. Schema status: {status_label}. "
+            f"Mapped {len(found_features)}/21 NASA JM1 metrics."
         )
+        if synthesized_features:
+            summary_msg += f" Synthesized {len(synthesized_features)} Halstead/McCabe complexity dimensions."
+            
+        state["_step_summary"] = summary_msg
         state["_step_details"] = {
-            "total_modules": len(df),
+            "total_modules": len(clean_df),
             "found_features_count": len(found_features),
             "missing_features_count": len(missing_features),
-            "null_elements": null_count,
+            "aliased_columns": aliased_features[:5],
+            "synthesized_columns": synthesized_features[:5],
             "status": status_label
         }
         
         return state
+

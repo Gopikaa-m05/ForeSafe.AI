@@ -149,9 +149,14 @@ class AgentPipelineOrchestrator:
                     summary_json=pipeline_output
                 )
                 db.add(history_record)
-                db.commit()
+                db.flush()
+                
+                pipeline_output["id"] = history_record.id
                 pipeline_output["history_id"] = history_record.id
-                logger.info(f"Successfully saved analysis history for user {user_id} with dataset ID {dataset_id}")
+                history_record.summary_json = pipeline_output
+                db.commit()
+                logger.info(f"Successfully saved analysis history for user {user_id} with dataset ID {dataset_id} and history ID {history_record.id}")
+
 
                 # 4. Optional Server-side Firestore sync if Firebase Admin is initialized
                 try:

@@ -69,13 +69,25 @@ export const ResultsPage = () => {
 
   if (!analysisData) {
     return (
-      <div className="page-wrapper" style={{ textAlign: 'center', padding: '60px 0' }}>
-        <h3>No Analysis Data Available</h3>
-        <p style={{ marginTop: '8px', marginBottom: '20px' }}>Please upload a software metrics CSV dataset to run predictions.</p>
-        <Link to="/upload" className="btn btn-primary">Go to Upload</Link>
+      <div className="page-wrapper animate-fade-in" style={{ textAlign: 'center', padding: '60px 20px', maxWidth: '600px', margin: '0 auto' }}>
+        <div className="glass-card" style={{ padding: '40px 24px' }}>
+          <h3 style={{ fontSize: '1.4rem', marginBottom: '10px' }}>No Active Analysis Results</h3>
+          <p style={{ marginTop: '8px', marginBottom: '24px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Upload a software metrics dataset (CSV, TSV, Excel, JSON) or load the built-in NASA JM1 benchmark to view multi-agent predictions, SHAP explanations, and debugging roadmaps.
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <Link to="/upload" className="btn btn-primary" style={{ padding: '10px 24px' }}>
+              Go to Upload
+            </Link>
+            <Link to="/dashboard" className="btn btn-secondary" style={{ padding: '10px 20px' }}>
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
+
 
   const {
     filename = 'software_modules.csv',
@@ -137,7 +149,8 @@ export const ResultsPage = () => {
             <Compass size={15} />
             <span>AI Decision Hub & Roadmap</span>
           </button>
-          <DownloadButton historyId={currentHistoryId} filename={filename} />
+          <DownloadButton historyId={currentHistoryId} analysisData={analysisData} filename={filename} />
+
         </div>
       </div>
 

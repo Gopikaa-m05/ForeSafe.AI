@@ -11,63 +11,83 @@ from app.api.auth import get_current_user
 from app.db.models import User
 from app.schemas.prediction import UploadValidationResponse
 from app.ml.train import FEATURE_COLUMNS
+from app.utils.data_parser import parse_dataset_file
 
 router = APIRouter()
+
+SUPPORTED_EXTENSIONS = (".csv", ".tsv", ".txt", ".xlsx", ".xls", ".json")
 
 @router.post("/upload", response_model=UploadValidationResponse)
 async def upload_dataset(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
 ):
-    if not file.filename.endswith(".csv"):
+    fn_lower = file.filename.lower()
+    if not any(fn_lower.endswith(ext) for ext in SUPPORTED_EXTENSIONS):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only CSV (.csv) files are supported for NASA JM1 risk analysis."
+            detail=f"Unsupported file format '{file.filename}'. Supported formats: CSV (.csv), TSV (.tsv), Excel (.xlsx, .xls), JSON (.json), TXT (.txt)."
         )
         
     try:
         contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
+        if not contents or len(contents.strip()) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The uploaded file is empty."
+            )
+            
+        clean_df, module_names, meta = parse_dataset_file(contents, file.filename)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse CSV file: {str(e)}"
+            detail=f"Failed to parse file '{file.filename}': {str(e)}"
         )
         
-    if df.empty:
+    if clean_df.empty or len(clean_df) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The uploaded CSV file is empty."
+            detail="The uploaded file contains no data rows."
         )
         
-    # Standardize column names
-    df.columns = [c.strip() for c in df.columns]
+    found_cols = meta["found_features"]
+    missing_cols = [c for c in FEATURE_COLUMNS if c not in found_cols]
     
-    found_cols = [c for c in FEATURE_COLUMNS if c in df.columns]
-    missing_cols = [c for c in FEATURE_COLUMNS if c not in df.columns]
+    # Dataset is considered valid for AI analysis as long as records were parsed and structured
+    is_valid = len(clean_df) > 0
     
-    is_valid = len(found_cols) >= 10
-    schema_status = "Valid NASA JM1 Schema" if len(missing_cols) == 0 else f"Partial Match ({len(found_cols)}/21 features)"
+    if len(found_cols) == len(FEATURE_COLUMNS):
+        schema_status = "Valid NASA JM1 Full Schema (21/21 features)"
+    elif len(found_cols) >= 10:
+        schema_status = f"Valid NASA JM1 Schema ({len(found_cols)}/21 features matched)"
+    else:
+        schema_status = f"Smart-Mapped & Synthesized ({len(found_cols)}/21 detected, {len(missing_cols)} auto-synthesized)"
     
     # Save a temporary copy in upload dir
-    save_path = os.path.join(settings.UPLOAD_DIR, f"user_{current_user.id}_{file.filename}")
-    with open(save_path, "wb") as f:
-        f.write(contents)
+    try:
+        save_path = os.path.join(settings.UPLOAD_DIR, f"user_{current_user.id}_{file.filename}")
+        with open(save_path, "wb") as f:
+            f.write(contents)
+    except Exception as err:
+        pass
         
-    # Generate clean sample preview (top 5 rows)
-    preview_df = df.head(5).fillna(0)
+    # Generate clean sample preview (top 5 rows) with module name
+    preview_df = clean_df.head(5).copy()
+    preview_df.insert(0, "module", module_names[:5])
     sample_preview = preview_df.to_dict(orient="records")
     
     message = (
-        f"File '{file.filename}' processed successfully ({len(df)} rows). "
-        f"Found {len(found_cols)}/21 Halstead & McCabe metric columns."
+        f"File '{file.filename}' parsed successfully ({len(clean_df)} software modules). "
+        f"Detected {len(found_cols)}/21 Halstead & McCabe metric columns."
     )
     if missing_cols:
-        message += f" Note: {len(missing_cols)} optional features will be automatically imputed during preprocessing."
+        message += f" {len(missing_cols)} complementary metrics will be automatically synthesized and imputed during pipeline execution."
         
     return UploadValidationResponse(
         filename=file.filename,
-        row_count=len(df),
+        row_count=len(clean_df),
         is_valid=is_valid,
         schema_status=schema_status,
         columns_found=found_cols,
@@ -97,3 +117,4 @@ def download_sample_dataset():
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=nasa_jm1_sample_dataset.csv"}
     )
+

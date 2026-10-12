@@ -37,16 +37,19 @@ export const UploadPage = () => {
         navigate('/results');
       }, 1000);
     } catch (err) {
-      addToast(err.response?.data?.detail || 'Pipeline execution failed.', 'error');
+      const errMsg = err.response?.data?.detail || err.message || 'Pipeline execution failed.';
+      addToast(errMsg, 'error');
       setIsAnalyzing(false);
     }
   };
 
   return (
     <div className="page-wrapper animate-fade-in">
-      <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 32px' }}>
-        <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>Upload Software Metrics CSV</h1>
-        <p style={{ fontSize: '0.95rem' }}>
+      <div style={{ textAlign: 'center', maxWidth: '750px', margin: '0 auto 32px' }}>
+        <h1 style={{ fontSize: '2.2rem', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+          Upload Software Metrics Dataset
+        </h1>
+        <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
           Evaluate code failure probability across NASA PROMISE JM1 Halstead and McCabe dimensions using our autonomous 6-agent pipeline.
         </p>
       </div>
@@ -54,7 +57,7 @@ export const UploadPage = () => {
       <FileUpload onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
 
       {isAnalyzing && (
-        <div style={{ maxWidth: '850px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '850px', margin: '20px auto 0' }}>
           <AgentTimeline isRunning={isAnalyzing} telemetry={telemetry} />
         </div>
       )}
@@ -63,3 +66,4 @@ export const UploadPage = () => {
 };
 
 export default UploadPage;
+

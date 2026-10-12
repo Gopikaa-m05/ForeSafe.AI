@@ -4,6 +4,7 @@ from typing import Dict, Any
 from app.agents.base_agent import BaseAgent
 from app.ml.predict import model_manager
 from app.ml.train import FEATURE_COLUMNS
+from app.utils.data_parser import DEFAULT_FEATURE_MEDIANS
 
 class PreprocessingAgent(BaseAgent):
     def __init__(self):
@@ -21,22 +22,23 @@ class PreprocessingAgent(BaseAgent):
         for col in FEATURE_COLUMNS:
             if col in processed_df.columns:
                 processed_df[col] = pd.to_numeric(
-                    processed_df[col].astype(str).str.replace('?', 'NaN'),
+                    processed_df[col].astype(str).str.replace('?', 'NaN', regex=False),
                     errors='coerce'
                 )
                 median_val = processed_df[col].median()
                 if pd.isna(median_val):
-                    median_val = 0.0
+                    median_val = DEFAULT_FEATURE_MEDIANS.get(col, 0.0)
                 if processed_df[col].isna().any():
                     imputed_features.append(col)
                 processed_df[col] = processed_df[col].fillna(median_val)
             else:
-                # Missing column entirely - fill with baseline zero
-                processed_df[col] = 0.0
+                # Missing column entirely - fill with baseline median
+                default_val = DEFAULT_FEATURE_MEDIANS.get(col, 0.0)
+                processed_df[col] = default_val
                 imputed_features.append(col)
                 
         # Scale features using pre-trained StandardScaler
-        X = processed_df[FEATURE_COLUMNS]
+        X = processed_df[FEATURE_COLUMNS].astype(float)
         X_scaled = model_manager.scaler.transform(X)
         
         state["processed_df"] = processed_df
@@ -52,3 +54,4 @@ class PreprocessingAgent(BaseAgent):
         }
         
         return state
+

@@ -16,15 +16,16 @@ export const Navbar = () => {
   const [apiOnline, setApiOnline] = useState(true);
   const [navSearch, setNavSearch] = useState('');
 
+  const checkApi = async () => {
+    try {
+      const res = await predictionService.getHealth();
+      setApiOnline(res.status === 'healthy');
+    } catch {
+      setApiOnline(false);
+    }
+  };
+
   useEffect(() => {
-    const checkApi = async () => {
-      try {
-        const res = await predictionService.getHealth();
-        setApiOnline(res.status === 'healthy');
-      } catch {
-        setApiOnline(false);
-      }
-    };
     checkApi();
     const interval = setInterval(checkApi, 30000);
     return () => clearInterval(interval);
@@ -102,18 +103,20 @@ export const Navbar = () => {
         )}
 
         {/* System Health Badge */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 10px',
-          background: apiOnline ? 'rgba(0, 245, 212, 0.1)' : 'rgba(239, 71, 111, 0.1)',
-          border: `1px solid ${apiOnline ? 'rgba(0, 245, 212, 0.3)' : 'rgba(239, 71, 111, 0.3)'}`,
-          borderRadius: 'var(--radius-full)',
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          color: apiOnline ? '#00f5d4' : '#fda4af',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            background: apiOnline ? 'rgba(0, 245, 212, 0.1)' : 'rgba(239, 71, 111, 0.1)',
+            border: `1px solid ${apiOnline ? 'rgba(0, 245, 212, 0.3)' : 'rgba(239, 71, 111, 0.3)'}`,
+            borderRadius: 'var(--radius-full)',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            color: apiOnline ? '#00f5d4' : '#fda4af',
+          }}
+        >
           <div style={{
             width: '6px',
             height: '6px',
@@ -121,7 +124,7 @@ export const Navbar = () => {
             background: apiOnline ? '#00f5d4' : '#ef476f',
             boxShadow: `0 0 8px ${apiOnline ? '#00f5d4' : '#ef476f'}`
           }} />
-          <span>{apiOnline ? 'AI Pipeline Ready' : 'Backend Offline'}</span>
+          <span>{apiOnline ? 'AI Pipeline Ready' : 'Connecting...'}</span>
         </div>
 
         {isAuthenticated ? (

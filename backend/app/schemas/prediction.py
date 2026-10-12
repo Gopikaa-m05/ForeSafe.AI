@@ -57,6 +57,8 @@ class RiskDistribution(BaseModel):
     critical_hotspots_count: int
 
 class PipelineResultResponse(BaseModel):
+    id: Optional[int] = None
+    history_id: Optional[int] = None
     dataset_id: Optional[int] = None
     filename: str
     total_modules: int
@@ -67,6 +69,7 @@ class PipelineResultResponse(BaseModel):
     predictions: List[ModulePrediction]
     high_priority_recommendations: List[str]
     generated_at: datetime = datetime.now(timezone.utc)
+
 
 class HistoryItemOut(BaseModel):
     id: int
